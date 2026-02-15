@@ -1,0 +1,337 @@
+# ================================================================
+# MODEL CONFIGURATION - ML HYPERPARAMETERS
+# ================================================================
+# Configure all machine learning model parameters here
+# Optimized for RTX 2050 laptop (CPU-friendly defaults)
+# ================================================================
+
+# ============ ENSEMBLE WEIGHTS ============
+# These control how much each algorithm contributes to final recommendations
+# Sum should equal 1.0 (or will be normalized automatically)
+ensemble_weights:
+  collaborative: 0.4    # User-user similarity
+  content_based: 0.3    # Item-item similarity
+  sentiment: 0.2        # Review sentiment scores
+  popularity: 0.1       # Trending/popular items
+
+# ============ COLLABORATIVE FILTERING ============
+collaborative_filtering:
+  # Algorithm selection
+  algorithm: "svd"  # svd | als | nmf | neural_cf
+  
+  # SVD (Singular Value Decomposition)
+  svd:
+    n_factors: 50       # Number of latent factors (reduce to 20 if memory issues)
+    n_epochs: 20        # Training epochs
+    lr_all: 0.005       # Learning rate
+    reg_all: 0.02       # Regularization
+    random_state: 42
+  
+  # ALS (Alternating Least Squares)
+  als:
+    factors: 50         # Latent factors
+    regularization: 0.01
+    iterations: 15
+    use_gpu: false      # Set true if GPU available
+    num_threads: 2      # Parallel threads
+  
+  # Neural Collaborative Filtering (Advanced)
+  neural_cf:
+    enabled: false      # Disable by default (requires more resources)
+    embedding_dim: 32
+    hidden_layers: [64, 32, 16]
+    dropout: 0.2
+    learning_rate: 0.001
+    batch_size: 256
+
+# ============ CONTENT-BASED FILTERING ============
+content_based:
+  # Text similarity
+  text:
+    method: "tfidf"  # tfidf | word2vec | bert
+    max_features: 5000
+    ngram_range: [1, 2]  # Unigrams and bigrams
+    min_df: 2            # Minimum document frequency
+    max_df: 0.8          # Maximum document frequency
+  
+  # Image similarity (lightweight CNN)
+  image:
+    enabled: true
+    model: "mobilenet"  # mobilenet | resnet18 | efficientnet_b0
+    embedding_dim: 128
+    pretrained: true    # Use pretrained weights
+  
+  # Category/Attribute similarity
+  categorical:
+    weight_category: 0.4
+    weight_brand: 0.2
+    weight_price_range: 0.2
+    weight_attributes: 0.2
+
+# ============ SENTIMENT ANALYSIS ============
+sentiment_analysis:
+  # Model selection
+  model: "vader"  # vader | distilbert | textblob
+  
+  # VADER (fast, rule-based)
+  vader:
+    compound_threshold: 0.05  # Neutral threshold
+  
+  # DistilBERT (more accurate, slower)
+  distilbert:
+    enabled: false  # Enable if you want better accuracy
+    model_name: "distilbert-base-uncased-finetuned-sst-2-english"
+    batch_size: 16
+  
+  # Sentiment score weights
+  weights:
+    positive: 1.0
+    neutral: 0.5
+    negative: 0.0
+  
+  # Quality filtering
+  min_sentiment_score: 0.3  # Filter products below this score
+
+# ============ COLD START MODELS ============
+cold_start:
+  # Behavioral clustering
+  clustering:
+    algorithm: "kmeans"  # kmeans | dbscan | hierarchical
+    n_clusters: 10       # Number of user segments
+    features:
+      - mouse_speed
+      - scroll_depth
+      - click_frequency
+      - hover_duration
+      - time_on_page
+      - category_exploration
+      - price_sensitivity
+  
+  # Multi-Armed Bandit
+  bandit:
+    algorithm: "thompson_sampling"  # thompson_sampling | ucb | epsilon_greedy
+    epsilon: 0.1         # Exploration rate (for epsilon-greedy)
+    alpha: 1.0           # Prior (for Thompson Sampling)
+    beta: 1.0
+  
+  # Visual preference learning
+  visual:
+    enabled: false       # Enable visual card game
+    num_cards: 6         # Cards to show in quick game
+    duration_seconds: 12 # Total game duration
+    model: "simple_cnn"  # simple_cnn | resnet
+    embedding_dim: 64
+  
+  # Transfer learning
+  transfer:
+    enabled: true
+    similarity_threshold: 0.7  # Minimum similarity to transfer knowledge
+    max_users_to_transfer: 5   # Top K similar users
+
+# ============ CONTEXT-AWARE FEATURES ============
+context_awareness:
+  # Time-based recommendations
+  temporal:
+    enabled: true
+    time_of_day_weight: 0.3   # Morning/afternoon/evening preferences
+    day_of_week_weight: 0.2   # Weekday/weekend patterns
+    seasonal_weight: 0.2      # Seasonal trends
+    trending_weight: 0.3      # Recent popularity
+  
+  # Location-based (optional)
+  location:
+    enabled: false
+    use_ip_location: false
+    weight: 0.2
+  
+  # Device-based
+  device:
+    enabled: true
+    mobile_adjustment: true  # Adjust results for mobile
+    tablet_adjustment: true
+
+# ============ DIVERSITY & EXPLORATION ============
+diversity:
+  # Diversity metrics
+  intra_list_diversity: 0.3  # Variety within recommendations
+  coverage: 0.5              # Catalog coverage goal
+  
+  # Category mixing
+  category_distribution:
+    same_category: 0.6      # 60% from same category
+    related_category: 0.3   # 30% from related categories
+    surprise: 0.1           # 10% surprising items
+  
+  # Price distribution
+  price_distribution:
+    same_range: 0.5         # 50% in user's typical range
+    slightly_higher: 0.3    # 30% slightly more expensive
+    slightly_lower: 0.2     # 20% budget options
+
+# ============ TRENDING & POPULARITY ============
+trending:
+  # Freshness boost
+  new_items_boost: 0.2       # Boost for new arrivals
+  trending_boost: 0.15       # Boost for trending items
+  
+  # Time windows
+  trending_window_days: 7    # Consider last 7 days for trending
+  new_item_days: 30          # Items from last 30 days are "new"
+  
+  # Velocity calculation
+  velocity_weight: 0.4       # Recent activity
+  acceleration_weight: 0.3   # Growing popularity
+  social_proof_weight: 0.3   # Total engagement
+
+# ============ QUALITY FILTERS ============
+quality:
+  # Review-based filtering
+  min_reviews: 5             # Minimum number of reviews
+  min_rating: 3.0            # Minimum average rating
+  min_sentiment: 0.3         # Minimum sentiment score
+  
+  # Stock & availability
+  check_stock: true
+  hide_out_of_stock: true
+  
+  # Freshness
+  max_product_age_days: 730  # Don't recommend items older than 2 years
+
+# ============ CROSS-SELL & BUNDLES ============
+cross_sell:
+  enabled: true
+  
+  # Association rules
+  min_support: 0.01          # Minimum frequency
+  min_confidence: 0.3        # Minimum confidence
+  max_bundle_size: 3         # Maximum items in bundle
+  
+  # Frequently bought together
+  fbt_weight: 0.4
+  complementary_weight: 0.3
+  similar_weight: 0.3
+
+# ============ EXPLAINABILITY ============
+explainability:
+  enabled: true
+  
+  # Explanation types
+  show_reasons: true
+  show_similar_items: true
+  show_user_preferences: true
+  
+  # Reason templates
+  templates:
+    - "Because you viewed {product}"
+    - "Popular with people who bought {product}"
+    - "Based on your interest in {category}"
+    - "Trending in {location}"
+    - "Highly rated for {feature}"
+
+# ============ PERFORMANCE OPTIMIZATION ============
+optimization:
+  # Caching
+  cache_user_embeddings: true
+  cache_item_embeddings: true
+  cache_similarity_matrix: true
+  
+  # Batch processing
+  batch_size: 32             # Reduce if memory issues
+  prefetch_factor: 2
+  
+  # Approximate methods
+  use_approximate_nn: true   # Use approximate nearest neighbors (faster)
+  ann_trees: 10              # Number of trees for ANN
+
+# ============ EVALUATION METRICS ============
+evaluation:
+  # Metrics to calculate
+  metrics:
+    - precision@10
+    - recall@10
+    - ndcg@10
+    - map@10
+    - diversity
+    - coverage
+    - novelty
+  
+  # Business metrics
+  business_metrics:
+    click_through_rate: true
+    conversion_rate: true
+    average_order_value: true
+    session_duration: true
+
+# ============ A/B TESTING ============
+ab_testing:
+  enabled: false             # Enable in production
+  
+  # Experiments
+  experiments:
+    test_ensemble_weights:
+      enabled: false
+      variants:
+        - name: "control"
+          weights: {collaborative: 0.4, content: 0.3, sentiment: 0.2, popular: 0.1}
+        - name: "variant_a"
+          weights: {collaborative: 0.5, content: 0.3, sentiment: 0.1, popular: 0.1}
+  
+  # Traffic split
+  control_percentage: 50
+  variant_percentage: 50
+
+# ================================================================
+# PERFORMANCE PROFILES
+# ================================================================
+# Quick presets for different hardware configurations
+
+profiles:
+  # High-end machine (8GB+ RAM, GPU)
+  high_performance:
+    batch_size: 64
+    n_factors: 100
+    neural_cf: true
+    image_similarity: true
+    
+  # Medium machine (4-8GB RAM)
+  balanced:
+    batch_size: 32
+    n_factors: 50
+    neural_cf: false
+    image_similarity: true
+  
+  # Low-end machine (< 4GB RAM)
+  low_resource:
+    batch_size: 16
+    n_factors: 20
+    neural_cf: false
+    image_similarity: false
+
+# Current active profile
+active_profile: "balanced"  # high_performance | balanced | low_resource
+
+# ================================================================
+# NOTES:
+# ================================================================
+#
+# QUICK TUNING GUIDE:
+# 
+# For better accuracy (slower):
+# - Increase n_factors to 100
+# - Increase n_epochs to 30
+# - Enable neural_cf
+# - Use distilbert for sentiment
+#
+# For faster performance (less accurate):
+# - Decrease n_factors to 20
+# - Decrease n_epochs to 10
+# - Use vader for sentiment
+# - Disable image_similarity
+#
+# For memory issues:
+# - Reduce batch_size to 16 or 8
+# - Reduce n_factors to 20
+# - Set active_profile to "low_resource"
+# - Disable neural_cf and image features
+#
+# ================================================================

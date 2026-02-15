@@ -1,0 +1,248 @@
+# ================================================================
+# ADAPTIVE RECOMMENDATION SYSTEM - MAIN SETTINGS
+# ================================================================
+# Edit these settings to customize your system
+# All settings have sensible defaults - you can start without changes!
+# ================================================================
+
+# ============ GENERAL SETTINGS ============
+app:
+  name: "Adaptive Recommendation System"
+  version: "1.0.0"
+  debug: true  # Set to false in production
+  environment: "development"  # development | production
+
+# ============ API SERVER SETTINGS ============
+api:
+  host: "0.0.0.0"  # Listen on all interfaces
+  port: 8000       # Change if port 8000 is busy
+  reload: true     # Auto-reload on code changes (development only)
+  workers: 1       # Number of worker processes (increase for production)
+  log_level: "info"  # debug | info | warning | error
+
+# ============ DATABASE SETTINGS ============
+database:
+  # SQLite (default - no setup needed)
+  type: "sqlite"
+  path: "data/recommendations.db"
+  
+  # PostgreSQL (optional - for production)
+  # Uncomment and configure if you want to use PostgreSQL
+  # type: "postgresql"
+  # host: "localhost"
+  # port: 5432
+  # username: "your_username"
+  # password: "your_password"
+  # database: "recommendations_db"
+  
+  # Connection pooling
+  pool_size: 5
+  max_overflow: 10
+
+# ============ DATA PATHS ============
+paths:
+  raw_data: "data/raw"
+  processed_data: "data/processed"
+  features: "data/features"
+  models: "models"
+  logs: "logs"
+  sample_data: "data/sample_datasets"
+
+# ============ LOGGING SETTINGS ============
+logging:
+  level: "INFO"  # DEBUG | INFO | WARNING | ERROR | CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/app.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+  console_output: true
+
+# ============ RECOMMENDATION SETTINGS ============
+recommendations:
+  # Number of items to recommend
+  num_items: 10
+  
+  # Minimum confidence score (0-1)
+  min_confidence: 0.3
+  
+  # Enable/disable features
+  features:
+    collaborative_filtering: true
+    content_based: true
+    sentiment_analysis: true
+    diversity_filter: true
+    trending_boost: true
+    price_sensitivity: true
+    context_aware: true
+    social_proof: true
+  
+  # Diversity settings
+  diversity:
+    enabled: true
+    category_mix: true  # Mix different categories
+    price_mix: true     # Mix different price ranges
+    brand_mix: true     # Mix different brands
+    min_diversity_score: 0.3
+  
+  # Quality filters
+  quality:
+    min_rating: 3.0          # Minimum product rating
+    min_reviews: 5           # Minimum number of reviews
+    stock_check: true        # Filter out-of-stock items
+    sentiment_threshold: 0.5  # Minimum sentiment score
+
+# ============ COLD START SETTINGS ============
+cold_start:
+  # Tracking settings
+  tracking:
+    enabled: true
+    duration_seconds: 60  # How long to track before personalizing
+    min_interactions: 3    # Minimum interactions before personalizing
+  
+  # Behavioral tracking
+  behavior:
+    track_mouse: true
+    track_scroll: true
+    track_clicks: true
+    track_hovers: true
+    track_time: true
+  
+  # Strategy selection
+  strategy:
+    adaptive: true  # Auto-select best strategy
+    visual_game: false  # Enable visual preference game (optional)
+    fallback_to_popular: true  # Show popular items if tracking fails
+  
+  # Confidence thresholds for strategy selection
+  confidence_thresholds:
+    high: 0.8   # Use personalized immediately
+    medium: 0.5  # Mix personalized + trending
+    low: 0.3    # Use visual game or popular items
+
+# ============ MODEL TRAINING SETTINGS ============
+training:
+  # Training schedule
+  auto_retrain: false  # Automatically retrain periodically
+  retrain_frequency_days: 7  # How often to retrain
+  
+  # Data splits
+  train_size: 0.8
+  val_size: 0.1
+  test_size: 0.1
+  
+  # Training parameters
+  batch_size: 32  # Reduce to 16 or 8 if memory issues
+  epochs: 10      # Number of training epochs
+  early_stopping: true
+  patience: 3     # Epochs to wait before early stopping
+  
+  # Optimization
+  use_gpu: false  # Set to true if you have GPU
+  num_workers: 2  # Data loading workers (reduce if memory issues)
+
+# ============ CACHING SETTINGS ============
+cache:
+  enabled: true
+  backend: "memory"  # memory | redis | none
+  ttl_seconds: 3600  # Cache lifetime (1 hour)
+  max_size: 1000     # Maximum cached items
+  
+  # Redis settings (if using Redis)
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+
+# ============ SECURITY SETTINGS ============
+security:
+  # API keys (generate your own in production!)
+  api_key_enabled: false
+  api_keys:
+    - "your-secret-api-key-here"
+  
+  # CORS settings
+  cors:
+    enabled: true
+    origins:
+      - "http://localhost:3000"
+      - "http://localhost:8000"
+    methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+    headers:
+      - "Content-Type"
+      - "Authorization"
+  
+  # Rate limiting
+  rate_limit:
+    enabled: false  # Enable in production
+    requests_per_minute: 100
+
+# ============ PERFORMANCE SETTINGS ============
+performance:
+  # Response timeout
+  timeout_seconds: 30
+  
+  # Memory limits
+  max_memory_mb: 4096  # Maximum memory usage
+  
+  # Parallel processing
+  multiprocessing: false  # Enable for faster processing
+  num_processes: 2        # Number of parallel processes
+
+# ============ FEATURE FLAGS ============
+features:
+  # Experimental features (use with caution!)
+  experimental:
+    neural_collaborative_filtering: false
+    graph_neural_networks: false
+    deep_learning_content: false
+    real_time_learning: false
+  
+  # Beta features (more stable)
+  beta:
+    auto_feature_engineering: true
+    sentiment_boost: true
+    context_awareness: true
+    cross_sell_bundles: true
+
+# ============ MONITORING & METRICS ============
+monitoring:
+  enabled: true
+  
+  # Metrics to track
+  metrics:
+    response_time: true
+    cache_hit_rate: true
+    model_accuracy: true
+    user_engagement: true
+  
+  # Alerting (optional)
+  alerts:
+    enabled: false
+    email: "your-email@example.com"
+    slack_webhook: ""
+
+# ================================================================
+# NOTES FOR BEGINNERS:
+# ================================================================
+# 
+# HOW TO USE THIS FILE:
+# 1. Most settings work fine with defaults
+# 2. Change only what you need
+# 3. Restart API after changes: python src/api/main.py
+#
+# COMMON CHANGES:
+# - Change port: api.port (if 8000 is busy)
+# - Disable features: recommendations.features.xyz = false
+# - Adjust performance: training.batch_size (lower if memory issues)
+# - Enable GPU: training.use_gpu = true
+#
+# TROUBLESHOOTING:
+# - Memory errors? Reduce training.batch_size to 16 or 8
+# - Slow training? Reduce training.epochs to 5
+# - Port busy? Change api.port to 8001 or 8080
+#
+# ================================================================

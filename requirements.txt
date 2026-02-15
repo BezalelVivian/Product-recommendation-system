@@ -1,0 +1,187 @@
+# ================================================================
+# ADAPTIVE RECOMMENDATION SYSTEM - DEPENDENCIES
+# ================================================================
+# Optimized for RTX 2050 laptop (CPU-first, GPU optional)
+# All FREE and open-source packages
+# ================================================================
+
+# ============ CORE ML/AI LIBRARIES ============
+# PyTorch (CPU version - lighter, faster install)
+# For GPU: Use torch==2.1.0+cu118 instead
+torch==2.2.0
+torchvision==0.16.0
+torchaudio==2.1.0
+
+# Traditional ML
+scikit-learn==1.3.2
+scipy==1.11.4
+numpy==1.24.3
+pandas==2.1.4
+
+# Matrix Factorization & Collaborative Filtering
+surprise==0.1  # Scikit-surprise for recommender systems
+implicit==0.7.2  # Fast collaborative filtering
+
+# ============ NLP & TEXT PROCESSING ============
+# Transformers (for BERT, DistilBERT)
+transformers==4.36.2
+sentence-transformers==2.2.2
+
+# Text processing
+nltk==3.8.1
+spacy==3.7.2
+textblob==0.17.1
+
+# Sentiment analysis (lightweight)
+vaderSentiment==3.3.2
+
+# TF-IDF and text vectorization
+gensim==4.3.2
+
+# ============ COMPUTER VISION ============
+# Image processing
+Pillow==10.1.0
+opencv-python==4.8.1.78
+
+# Lightweight image models
+timm==0.9.12  # PyTorch Image Models
+
+# ============ WEB API & SERVER ============
+# FastAPI (modern, fast web framework)
+fastapi==0.108.0
+uvicorn[standard]==0.25.0
+python-multipart==0.0.6
+
+# Request validation
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# CORS & security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# ============ DATABASE ============
+# SQLite (built-in) + ORM
+sqlalchemy==2.0.23
+alembic==1.13.1
+
+# Redis (optional, for caching)
+redis==5.0.1
+
+# ============ DATA PROCESSING ============
+# Data manipulation
+pyarrow==14.0.2  # Fast data serialization
+openpyxl==3.1.2  # Excel files
+xlrd==2.0.1      # Old Excel format
+
+# Data validation
+cerberus==1.3.5
+jsonschema==4.20.0
+
+# ============ UTILITIES ============
+# Progress bars
+tqdm==4.66.1
+
+# Configuration files
+pyyaml==6.0.1
+python-dotenv==1.0.0
+
+# Logging
+colorlog==6.8.0
+loguru==0.7.2
+
+# Date/time
+python-dateutil==2.8.2
+pytz==2023.3
+
+# ============ VISUALIZATION ============
+# Plotting
+matplotlib==3.8.2
+seaborn==0.13.0
+plotly==5.18.0
+
+# ============ TESTING ============
+# Testing framework
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-asyncio==0.21.1
+
+# Mock/Fixtures
+faker==21.0.0
+
+# ============ MODEL SERVING & MLOps ============
+# Experiment tracking (lightweight)
+mlflow==2.9.2
+
+# Model versioning
+joblib==1.3.2
+pickle5==0.0.12
+
+# ============ HTTP & NETWORKING ============
+requests==2.31.0
+httpx==0.25.2
+aiohttp==3.9.1
+
+# ============ PERFORMANCE ============
+# Multiprocessing
+joblib==1.3.2
+concurrent-futures==3.1.1
+
+# Memory optimization
+psutil==5.9.6
+
+# ============ JUPYTER NOTEBOOKS ============
+jupyter==1.0.0
+notebook==7.0.6
+ipykernel==6.27.1
+ipywidgets==8.1.1
+
+# ============ SPECIFIC RECOMMENDER TOOLS ============
+# Bandits (for cold start)
+contextualbandits==0.4.1
+
+# Graph processing (lightweight version)
+networkx==3.2.1
+
+# ============ OPTIONAL BUT USEFUL ============
+# Auto-formatting
+black==23.12.1
+isort==5.13.2
+
+# Linting
+flake8==6.1.0
+pylint==3.0.3
+
+# Type checking
+mypy==1.7.1
+
+# ================================================================
+# INSTALLATION NOTES:
+# ================================================================
+# 
+# Basic Install (Recommended for beginners):
+#   pip install -r requirements.txt
+#
+# With GPU Support (if you have CUDA):
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+#   pip install -r requirements.txt
+#
+# Minimal Install (just to run, no development tools):
+#   pip install torch scikit-learn pandas fastapi uvicorn surprise pyyaml
+#
+# ================================================================
+# TROUBLESHOOTING:
+# ================================================================
+#
+# If installation fails:
+# 1. Update pip: python -m pip install --upgrade pip
+# 2. Install build tools: pip install wheel setuptools
+# 3. Try individual packages if bulk install fails
+# 4. For Windows: Install Visual C++ Build Tools if needed
+#
+# Memory issues during install:
+# 1. Install packages one by one
+# 2. Close other applications
+# 3. Use: pip install --no-cache-dir -r requirements.txt
+#
+# ================================================================
