@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopSmart Admin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0f1419;
+            color: #e7e9ea;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .header p {
+            opacity: 0.9;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 40px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: #192734;
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid #2f3336;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #8b98a5;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+        }
+
+        .stat-change {
+            font-size: 12px;
+            color: #00ba34;
+        }
+
+        .section {
+            background: #192734;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #2f3336;
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-container {
+            background: #0f1419;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .product-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .product-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: #0f1419;
+            border-radius: 8px;
+            border: 1px solid #2f3336;
+            transition: background 0.3s;
+        }
+
+        .product-item:hover {
+            background: #1c2732;
+        }
+
+        .product-rank {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+            min-width: 40px;
+        }
+
+        .product-info {
+            flex: 1;
+        }
+
+        .product-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .product-meta {
+            font-size: 13px;
+            color: #8b98a5;
+        }
+
+        .product-score {
+            text-align: right;
+        }
+
+        .score-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #00ba34;
+        }
+
+        .score-label {
+            font-size: 11px;
+            color: #8b98a5;
+            text-transform: uppercase;
+        }
+
+        .bar {
+            height: 8px;
+            background: #2f3336;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 1s ease;
+        }
+
+        .activity-feed {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 15px;
+            padding: 12px;
+            border-bottom: 1px solid #2f3336;
+        }
+
+        .activity-icon {
+            font-size: 24px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-text {
+            margin-bottom: 3px;
+        }
+
+        .activity-time {
+            font-size: 12px;
+            color: #8b98a5;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            margin-left: auto;
+            transition: transform 0.3s;
+        }
+
+        .refresh-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 16px;
+            color: #8b98a5;
+        }
+
+        .spinner {
+            border: 3px solid #2f3336;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #192734;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>🎛️ ShopSmart Admin Dashboard</h1>
+        <p>Real-time analytics & user behavior insights</p>
+    </div>
+
+    <div class="container">
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Products</div>
+                <div class="stat-value" id="statProducts">-</div>
+                <div class="stat-change">↗ Active in database</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Users</div>
+                <div class="stat-value" id="statUsers">-</div>
+                <div class="stat-change">↗ Registered + Guests</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Interactions</div>
+                <div class="stat-value" id="statInteractions">-</div>
+                <div class="stat-change">↗ Views, Clicks, Purchases</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Rating</div>
+                <div class="stat-value" id="statRating">-</div>
+                <div class="stat-change">⭐ Product quality</div>
+            </div>
+        </div>
+
+        <!-- Top Products -->
+        <div class="section">
+            <div class="section-title">
+                🔥 Top Products by Interest
+                <button class="refresh-btn" onclick="loadData()">Refresh Data</button>
+            </div>
+            <div id="topProducts" class="product-list">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading data...
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Performance -->
+        <div class="section">
+            <div class="section-title">📊 Category Performance</div>
+            <div id="categoryChart" class="chart-container">
+                <div class="loading">Loading categories...</div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="section">
+           
+            
+                
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let autoRefreshInterval;
+    
+        async function loadData() {
+            await Promise.all([
+                loadStats(),
+                loadTopProducts(),
+                loadHoverAnalytics(),
+                loadCategoryPerformance(),
+                loadRealActivity()
+            ]);
+        }
+    
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE}/stats`);
+                const data = await response.json();
+    
+                document.getElementById('statProducts').textContent = data.num_products?.toLocaleString() || '-';
+                document.getElementById('statUsers').textContent = data.num_users?.toLocaleString() || '-';
+                document.getElementById('statInteractions').textContent = data.num_interactions?.toLocaleString() || '-';
+                document.getElementById('statRating').textContent = data.avg_rating?.toFixed(2) || '-';
+            } catch (error) {
+                console.error('Stats error:', error);
+            }
+        }
+    
+        async function loadTopProducts() {
+            try {
+                const response = await fetch(`${API_BASE}/products?limit=10`);
+                const products = await response.json();
+    
+                const html = products.map((product, idx) => {
+                    const score = product.avg_rating * product.num_ratings;
+                    return `
+                        <div class="product-item">
+                            <div class="product-rank">#${idx + 1}</div>
+                            <div class="product-info">
+                                <div class="product-name">${product.name}</div>
+                                <div class="product-meta">${product.brand} • ${product.category}</div>
+                                <div class="bar">
+                                    <div class="bar-fill" style="width: ${Math.min(score / 100, 100)}%"></div>
+                                </div>
+                            </div>
+                            <div class="product-score">
+                                <div class="score-value">${product.avg_rating.toFixed(1)}⭐</div>
+                                <div class="score-label">${product.num_ratings} ratings</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+    
+                document.getElementById('topProducts').innerHTML = html || '<p style="text-align:center;color:#8b98a5">No products found</p>';
+            } catch (error) {
+                document.getElementById('topProducts').innerHTML = '<p style="text-align:center;color:#f44336">Failed to load products</p>';
+            }
+        }
+    
+        async function loadHoverAnalytics() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/hover-analytics?limit=10`);
+                const products = await response.json();
+    
+                if (!products || products.length === 0) {
+                    document.getElementById('topProducts').innerHTML = '<p style="text-align:center;color:#8b98a5">No hover data yet. Browse products to generate data!</p>';
+                    return;
+                }
+    
+                const maxHover = Math.max(...products.map(p => p.total_hover_time || 0));
+    
+                const html = products.map((product, idx) => {
+                    const hoverTime = product.total_hover_time || 0;
+                    const avgHover = product.avg_hover_time || 0;
+                    const percentage = maxHover > 0 ? (hoverTime / maxHover) * 100 : 0;
+                    
+                    return `
+                        <div class="product-item">
+                            <div class="product-rank">#${idx + 1}</div>
+                            <div class="product-info">
+                                <div class="product-name">${product.name}</div>
+                                <div class="product-meta">${product.brand} • ${product.category} • ${product.unique_users} users</div>
+                                <div class="bar">
+                                    <div class="bar-fill" style="width: ${percentage}%"></div>
+                                </div>
+                            </div>
+                            <div class="product-score">
+                                <div class="score-value">${hoverTime.toFixed(1)}s</div>
+                                <div class="score-label">Total Hover</div>
+                                <div style="font-size:11px;color:#8b98a5;margin-top:3px">Avg: ${avgHover.toFixed(1)}s</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+    
+                document.getElementById('topProducts').innerHTML = html;
+            } catch (error) {
+                console.error('Hover analytics error:', error);
+            }
+        }
+    
+        async function loadCategoryPerformance() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/category-performance`);
+                const categories = await response.json();
+    
+                if (!categories || categories.length === 0) {
+                    document.getElementById('categoryChart').innerHTML = '<p style="text-align:center;color:#8b98a5">No category data yet</p>';
+                    return;
+                }
+    
+                const maxInterest = Math.max(...categories.map(c => c.total_interest || 0));
+    
+                const html = categories.map(cat => {
+                    const interest = cat.total_interest || 0;
+                    const percentage = maxInterest > 0 ? (interest / maxInterest) * 100 : 0;
+                    
+                    return `
+                        <div style="margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-weight: 600;">${cat.category}</span>
+                                <div style="text-align: right;">
+                                    <span style="color: #667eea; font-weight: 700;">${cat.total_interactions} interactions</span>
+                                    <span style="color: #8b98a5; font-size: 12px; margin-left: 10px;">${cat.unique_users} users</span>
+                                    <span style="color: #00ba34; font-size: 12px; margin-left: 10px;">${cat.purchases} sales</span>
+                                </div>
+                            </div>
+                            <div class="bar">
+                                <div class="bar-fill" style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+    
+                document.getElementById('categoryChart').innerHTML = html;
+            } catch (error) {
+                console.error('Category performance error:', error);
+                document.getElementById('categoryChart').innerHTML = '<p style="text-align:center;color:#f44336">Failed to load categories</p>';
+            }
+        }
+    
+        async function loadRealActivity() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/recent-activity?limit=20`);
+                const activities = await response.json();
+    
+                if (!activities || activities.length === 0) {
+                    document.getElementById('activityFeed').innerHTML = '<p style="text-align:center;color:#8b98a5">No activity yet. Browse products to generate activity!</p>';
+                    return;
+                }
+    
+                const html = activities.map(activity => {
+                    // Icon based on activity type
+                    let icon = '👁️';
+                    if (activity.type === 'click') icon = '🖱️';
+                    else if (activity.type === 'cart_add') icon = '🛒';
+                    else if (activity.type === 'purchase') icon = '💳';
+                    else if (activity.type === 'hover') icon = '⚡';
+                    else if (activity.type === 'search') icon = '🔍';
+    
+                    // Format user
+                    const userName = activity.is_guest ? `👤 ${activity.user}` : `👨 ${activity.user}`;
+    
+                    // Format time
+                    const timeAgo = getTimeAgo(activity.timestamp);
+    
+                    // Format text
+                    let text = '';
+                    if (activity.type === 'hover' && activity.hover_duration) {
+                        text = `${userName} hovered on ${activity.product} (${activity.hover_duration.toFixed(1)}s)`;
+                    } else if (activity.type === 'cart_add') {
+                        text = `${userName} added ${activity.product} to cart`;
+                    } else if (activity.type === 'purchase') {
+                        text = `${userName} purchased ${activity.product}`;
+                    } else if (activity.type === 'click') {
+                        text = `${userName} clicked ${activity.product}`;
+                    } else {
+                        text = `${userName} viewed ${activity.product}`;
+                    }
+    
+                    // Score indicator
+                    let scoreIndicator = '';
+                    if (activity.score >= 10) scoreIndicator = ' 🔥';
+                    else if (activity.score >= 5) scoreIndicator = ' ⚡';
+    
+                    return `
+                        <div class="activity-item">
+                            <div class="activity-icon">${icon}</div>
+                            <div class="activity-content">
+                                <div class="activity-text">${text}${scoreIndicator}</div>
+                                <div class="activity-time">${timeAgo}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+    
+                document.getElementById('activityFeed').innerHTML = html;
+            } catch (error) {
+                console.error('Activity error:', error);
+                document.getElementById('activityFeed').innerHTML = '<p style="text-align:center;color:#f44336">Failed to load activity</p>';
+            }
+        }
+    
+        function getTimeAgo(timestamp) {
+            const now = new Date();
+            const then = new Date(timestamp);
+            const seconds = Math.floor((now - then) / 1000);
+    
+            if (seconds < 60) return `${seconds} seconds ago`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+            return `${Math.floor(seconds / 86400)} days ago`;
+        }
+    
+        // Load data on page load
+        window.onload = () => {
+            loadData();
+            
+            // Auto-refresh every 10 seconds
+            autoRefreshInterval = setInterval(loadData, 10000);
+        };
+    
+        // Clean up on page unload
+        window.onbeforeunload = () => {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+        };
+    </script>
+</body>
+</html>

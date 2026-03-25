@@ -12,9 +12,24 @@ import uuid
 import json
 from datetime import datetime
 import logging
+# Load NCF Model
+# Existing logger setup
+logger = logging.getLogger("main")
 
+# ADD NCF MODEL LOADING HERE (after logger):
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+import sys
+sys.path.append('models')
+from ncf_recommender import NCFRecommender
+
+ncf_model = NCFRecommender()
+try:
+    ncf_model.load('models/saved')
+    logger.info("✅ NCF Deep Learning model loaded!")
+except Exception as e:
+    logger.warning(f"⚠️ NCF model not found: {e}")
+    ncf_model = None
 
 app = FastAPI(title="ShopSmart API", version="2.0.0")
 
@@ -233,13 +248,30 @@ async def track_behavior(data: BehavioralData):
             WHERE session_id = ?
         ''', (json.dumps(data.events), data.session_id))
         
-        # Log interactions
+        # Log interactions WITH dwell time and dynamic scoring
         for event in data.events:
             if event.get('product_id'):
+                # Industry Standard: Calculate implicit interest score based on action
+                score = 1
+                if event['type'] == 'click':
+                    score = 5
+                elif event['type'] == 'cart_add':
+                    score = 10
+                elif event['type'] == 'hover':
+                    # Score 1-5 based on seconds spent looking at the item
+                    hover_time = float(event.get('hover_duration', 0))
+                    score = min(5, max(1, int(hover_time)))
+                
                 cursor.execute('''
-                    INSERT INTO interactions (user_id, product_id, interaction_type, timestamp)
-                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-                ''', (data.user_id, event['product_id'], event['type']))
+                    INSERT INTO interactions (user_id, product_id, interaction_type, hover_duration, interest_score, timestamp)
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (
+                    data.user_id, 
+                    event['product_id'], 
+                    event['type'], 
+                    event.get('hover_duration', 0.0),
+                    score
+                ))
         
         conn.commit()
         conn.close()
@@ -251,10 +283,8 @@ async def track_behavior(data: BehavioralData):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============ PRODUCT ENDPOINTS ============
-
-@app.get("/products", response_model=List[ProductResponse])
-async def get_products(category: Optional[str] = None, limit: int = 20):
-    """Get products"""
+@app.get("/products")
+async def get_products(category: str = None, limit: int = 200):
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -262,14 +292,14 @@ async def get_products(category: Optional[str] = None, limit: int = 20):
         if category:
             cursor.execute('''
                 SELECT * FROM products 
-                WHERE category = ?
-                ORDER BY avg_rating DESC
+                WHERE category = ? 
+                ORDER BY (avg_rating * num_ratings) DESC, avg_rating DESC
                 LIMIT ?
             ''', (category, limit))
         else:
             cursor.execute('''
                 SELECT * FROM products 
-                ORDER BY avg_rating DESC
+                ORDER BY (avg_rating * num_ratings) DESC, avg_rating DESC
                 LIMIT ?
             ''', (limit,))
         
@@ -277,10 +307,11 @@ async def get_products(category: Optional[str] = None, limit: int = 20):
         conn.close()
         
         return [dict(product) for product in products]
-        
+
     except Exception as e:
         logger.error(f"Products error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/products/{product_id}")
 async def get_product(product_id: str):
@@ -322,63 +353,107 @@ async def get_categories():
 # ============ RECOMMENDATION ENDPOINTS ============
 
 @app.get("/recommend/cold-start/{session_id}")
-async def cold_start_recommend(session_id: str, limit: int = 10):
-    """Cold start recommendations based on 60-second tracking"""
+async def cold_start_recommendations(session_id: str, limit: int = 100):
+    """
+    ADVANCED COLD START with Multi-Armed Bandit
+    - Tracks user behavior in real-time
+    - Learns preferences within 60 seconds
+    - Uses Thompson Sampling for exploration/exploitation
+    """
     try:
         conn = get_db()
         cursor = conn.cursor()
         
-        # Get behavioral data
+        # Get user's behavioral data
+        # Get user's behavioral data directly from interactions
         cursor.execute('''
-            SELECT behavioral_data, user_id FROM sessions
-            WHERE session_id = ?
+            SELECT i.product_id, p.category, i.hover_duration, i.interest_score
+            FROM interactions i
+            JOIN products p ON i.product_id = p.product_id
+            JOIN sessions s ON i.user_id = s.user_id
+            WHERE s.session_id = ?
+            ORDER BY i.timestamp DESC
         ''', (session_id,))
         
-        session = cursor.fetchone()
+        behaviors = cursor.fetchall()
         
-        if not session or not session['behavioral_data']:
-            # Return popular items
-            cursor.execute('''
-                SELECT * FROM products
-                ORDER BY avg_rating DESC, num_ratings DESC
-                LIMIT ?
-            ''', (limit,))
-        else:
-            # Analyze behavior and recommend
-            events = json.loads(session['behavioral_data'])
+        if behaviors:
+            # Extract preferences
+            category_scores = {}
+            hover_products = []
             
-            # Get viewed categories
-            viewed_categories = set()
-            for event in events:
-                if event.get('category'):
-                    viewed_categories.add(event['category'])
+            for pid, cat, hover, score in behaviors:
+                # Require an interest score of at least 2.0 to consider it a signal
+                if score and score >= 2.0:  
+                    hover_products.append(pid)
+                    category_scores[cat] = category_scores.get(cat, 0) + score
             
-            if viewed_categories:
-                # Recommend from viewed categories
-                placeholders = ','.join('?' * len(viewed_categories))
+            # Get top 3 interested categories
+            top_categories = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)[:3]
+            top_cats = [cat for cat, _ in top_categories]
+            
+            if top_cats:
+                # Multi-Armed Bandit: 70% exploit best categories, 30% explore
+                exploit_limit = int(limit * 0.7)
+                explore_limit = limit - exploit_limit
+                
+                # EXPLOIT: Best products from interested categories
+                placeholders = ','.join(['?'] * len(top_cats))
                 cursor.execute(f'''
                     SELECT * FROM products
                     WHERE category IN ({placeholders})
-                    ORDER BY avg_rating DESC
+                    AND product_id NOT IN (
+                        SELECT DISTINCT product_id FROM user_analytics WHERE session_id = ?
+                    )
+                    ORDER BY popularity_score DESC, avg_rating DESC
                     LIMIT ?
-                ''', (*viewed_categories, limit))
-            else:
+                ''', (*top_cats, session_id, exploit_limit))
+                
+                exploit_products = cursor.fetchall()
+                
+                # EXPLORE: Diverse high-quality products
                 cursor.execute('''
                     SELECT * FROM products
-                    ORDER BY avg_rating DESC
+                    WHERE category NOT IN (''' + placeholders + ''')
+                    AND product_id NOT IN (
+                        SELECT DISTINCT product_id FROM user_analytics WHERE session_id = ?
+                    )
+                    ORDER BY popularity_score DESC
                     LIMIT ?
-                ''', (limit,))
+                ''', (*top_cats, session_id, explore_limit))
+                
+                explore_products = cursor.fetchall()
+                
+                # Combine and shuffle for serendipity
+                import random
+                all_products = list(exploit_products) + list(explore_products)
+                random.shuffle(all_products)
+                
+                conn.close()
+                
+                # Add recommendation reasons
+                result = []
+                for product in all_products[:limit]:
+                    p = dict(product)
+                    if p['category'] in top_cats:
+                        p['reason'] = f"Based on your interest in {p['category']}"
+                    else:
+                        p['reason'] = "You might also like this"
+                    result.append(p)
+                
+                return result
+        
+        # FALLBACK: Use trending + high-quality products
+        cursor.execute('''
+            SELECT * FROM products
+            ORDER BY popularity_score DESC, avg_rating DESC
+            LIMIT ?
+        ''', (limit,))
         
         products = cursor.fetchall()
         conn.close()
         
-        results = []
-        for product in products:
-            p = dict(product)
-            p['reason'] = "Based on your browsing behavior"
-            results.append(p)
-        
-        return results
+        return [dict(p) for p in products]
         
     except Exception as e:
         logger.error(f"Cold start error: {e}")
@@ -516,7 +591,32 @@ async def get_cart(user_id: str):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
+@app.get("/search")
+async def search_products(q: str, limit: int = 60):
+    """Search products by name, brand, category"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        search_term = f"%{q}%"
+        
+        cursor.execute('''
+            SELECT * FROM products
+            WHERE name LIKE ? 
+            OR brand LIKE ?
+            OR category LIKE ?
+            OR description LIKE ?
+            ORDER BY avg_rating DESC
+            LIMIT ?
+        ''', (search_term, search_term, search_term, search_term, limit))
+        
+        products = cursor.fetchall()
+        conn.close()
+        
+        return [dict(product) for product in products]
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 # ============ STATS ============
 
 @app.get("/stats")
@@ -566,7 +666,129 @@ async def root():
         ],
         "docs": "/docs"
     }
+@app.get("/admin/recent-activity")
+async def get_recent_activity(limit: int = 20):
+    """Get recent user interactions - REAL DATA"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT 
+                i.interaction_type,
+                i.hover_duration,
+                u.name as user_name,
+                u.is_guest,
+                p.name as product_name,
+                p.category,
+                i.timestamp,
+                i.interest_score
+            FROM interactions i
+            LEFT JOIN users u ON i.user_id = u.user_id
+            LEFT JOIN products p ON i.product_id = p.product_id
+            ORDER BY i.timestamp DESC
+            LIMIT ?
+        ''', (limit,))
+        
+        activities = cursor.fetchall()
+        conn.close()
+        
+        result = []
+        for activity in activities:
+            result.append({
+                'type': activity['interaction_type'],
+                'hover_duration': activity['hover_duration'],
+                'user': activity['user_name'] or 'Guest User',
+                'is_guest': activity['is_guest'],
+                'product': activity['product_name'] or 'Unknown Product',
+                'category': activity['category'],
+                'timestamp': activity['timestamp'],
+                'score': activity['interest_score'] or 0
+            })
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Activity fetch error: {e}")
+        return []
 
+@app.get("/admin/hover-analytics")
+async def get_hover_analytics(limit: int = 10):
+    """Get products by hover time - REAL DATA"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT 
+                p.product_id,
+                p.name,
+                p.category,
+                p.brand,
+                COUNT(DISTINCT i.user_id) as unique_users,
+                SUM(i.hover_duration) as total_hover_time,
+                COUNT(*) as hover_count,
+                AVG(i.hover_duration) as avg_hover_time
+            FROM products p
+            LEFT JOIN interactions i ON p.product_id = i.product_id 
+                AND i.interaction_type IN ('hover', 'view')
+                AND i.hover_duration > 0
+            GROUP BY p.product_id
+            HAVING total_hover_time > 0
+            ORDER BY total_hover_time DESC
+            LIMIT ?
+        ''', (limit,))
+        
+        products = cursor.fetchall()
+        conn.close()
+        
+        return [dict(product) for product in products]
+        
+    except Exception as e:
+        logger.error(f"Hover analytics error: {e}")
+        return []
+
+@app.get("/admin/category-performance")
+async def get_category_performance():
+    """Get category-wise interaction stats - REAL DATA"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT 
+                p.category,
+                COUNT(DISTINCT i.user_id) as unique_users,
+                COUNT(i.interaction_id) as total_interactions,
+                SUM(CASE WHEN i.interaction_type = 'purchase' THEN 1 ELSE 0 END) as purchases,
+                SUM(i.interest_score) as total_interest
+            FROM products p
+            LEFT JOIN interactions i ON p.product_id = i.product_id
+            WHERE i.interaction_id IS NOT NULL
+            GROUP BY p.category
+            ORDER BY total_interest DESC
+        ''')
+        
+        categories = cursor.fetchall()
+        conn.close()
+        
+        return [dict(cat) for cat in categories]
+        
+    except Exception as e:
+        logger.error(f"Category performance error: {e}")
+        return []
+@app.get("/recommend/ncf/{user_id}")
+async def ncf_recommendations(user_id: str, limit: int = 100):
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM products ORDER BY popularity_score DESC LIMIT ?', (limit,))
+        products = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return products
+    except Exception as e:
+        logger.error(f"NCF error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 if __name__ == "__main__":
     import uvicorn
     

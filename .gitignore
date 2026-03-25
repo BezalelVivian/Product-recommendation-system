@@ -62,3 +62,21 @@ Thumbs.db
 # Cache
 .cache/
 *.cache
+# Ignore the Database
+*.db
+*.sqlite3
+data/ecommerce.db
+
+# Ignore ALL images and data
+data/
+images/
+frontend/data/
+
+# Ignore Python environment
+venv/
+__pycache__/
+.env
+
+# Ignore OS junk
+.DS_Store
+Thumbs.db
