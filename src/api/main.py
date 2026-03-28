@@ -116,6 +116,7 @@ async def guest_session():
         return {"success": True, "user_id": user_id, "session_id": session_id, "is_guest": True}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
+# 🚀 UPGRADED: 120-Second Cap & Smart Scoring
 @app.post("/tracking/behavior")
 async def track_behavior(data: BehavioralData):
     try:
@@ -123,7 +124,14 @@ async def track_behavior(data: BehavioralData):
         cursor = conn.cursor()
         for event in data.events:
             if event.get('product_id'):
-                score = 5 if event['type'] == 'click' else 10 if event['type'] == 'cart_add' else min(5, max(1, int(float(event.get('hover_duration', 0)))))
+                if event['type'] == 'click':
+                    score = 10 
+                elif event['type'] == 'cart_add':
+                    score = 50 
+                else:
+                    seconds_viewed = int(float(event.get('hover_duration', 0)))
+                    score = min(120, max(1, seconds_viewed))
+
                 cursor.execute('''INSERT INTO interactions (user_id, product_id, interaction_type, hover_duration, interest_score, timestamp)
                                   VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)''', 
                                (data.user_id, event['product_id'], event['type'], event.get('hover_duration', 0.0), score))
@@ -204,17 +212,16 @@ async def search_products(q: str, limit: int = 60):
         return [dict(p) for p in products]
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
-# ============ THE INDUSTRY-STANDARD PERSONA AI ============
+# 🚀 UPGRADED: The Industry-Standard Hybrid Recommendation AI
 @app.get("/recommend/cold-start/{session_id}")
-async def cold_start_recommendations(session_id: str, limit: int = 400):
+async def cold_start_recommendations(session_id: str, limit: int = 40):
     try:
         conn = get_db()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # 1. Fetch the last 15 interactions with full product context
         cursor.execute('''
-            SELECT p.category, p.brand, p.price, i.interest_score
+            SELECT p.category, p.name, p.brand, p.price, i.interest_score
             FROM interactions i 
             JOIN products p ON i.product_id = p.product_id 
             WHERE i.user_id = ? 
@@ -225,59 +232,72 @@ async def cold_start_recommendations(session_id: str, limit: int = 400):
         recent_items = cursor.fetchall()
         
         if recent_items:
-            # 2. Build the Real-Time User Persona
             category_scores = {}
-            brands_seen = []
             prices = []
+            keywords_seen = []
+            
+            stopwords = {'mens', 'womens', "women's", "men's", 'black', 'white', 'with', 'leather', 'size', 'color', 'shoe', 'shoes', 'from', 'gift'}
             
             for item in recent_items:
-                if item['interest_score'] and item['interest_score'] >= 2.0:
+                score = item['interest_score']
+                if score and score >= 2.0:
                     cat = item['category']
-                    brand = item['brand']
-                    price = item['price']
+                    if cat:
+                        category_scores[cat] = category_scores.get(cat, 0) + score
                     
-                    # Accumulate scores to find their TRUE favorite category
-                    category_scores[cat] = category_scores.get(cat, 0) + item['interest_score']
-                    
-                    if brand and brand != 'Generic' and brand not in brands_seen:
-                        brands_seen.append(brand)
-                        
-                    if price:
-                        prices.append(price)
+                    if item['price']:
+                        prices.append(item['price'])
 
-            # Extract the absolute most dominant traits
+                    if item['name']:
+                        name_clean = item['name'].replace(',', ' ').replace('-', ' ').replace('/', ' ')
+                        for word in name_clean.split():
+                            w = word.lower()
+                            if len(w) >= 4 and w not in stopwords and w not in keywords_seen:
+                                keywords_seen.append(w)
+
             top_categories = sorted(category_scores, key=category_scores.get, reverse=True)[:3]
             primary_category = top_categories[0] if top_categories else None
-            primary_brand = brands_seen[0] if brands_seen else None
+            top_keywords = keywords_seen[:6] 
             
-            # Calculate Price Bracketing (Affinity Range)
             min_price, max_price = 0, 999999
             if prices:
                 avg_price = sum(prices) / len(prices)
-                min_price = avg_price * 0.4  # Willing to go slightly cheaper
-                max_price = avg_price * 2.0  # Willing to go up to double the price
+                min_price = avg_price * 0.3
+                max_price = avg_price * 2.5
 
-            if top_categories:
-                cat_placeholders = ','.join(['?'] * len(top_categories))
+            if top_categories or top_keywords:
+                score_parts = []
+                params = []
                 
-                # 3. The Dynamic Scoring Engine (Brand Affinity + Price Bracketing + Dominant Category)
+                # A. Category Dominance Score
+                if top_categories:
+                    cat_placeholders = ','.join(['?'] * len(top_categories))
+                    score_parts.append(f"(CASE WHEN category = ? THEN 50 ELSE 0 END)")
+                    params.append(primary_category)
+                    score_parts.append(f"(CASE WHEN category IN ({cat_placeholders}) THEN 20 ELSE 0 END)")
+                    params.extend(top_categories)
+                
+                # B. Price Bracket Score
+                score_parts.append(f"(CASE WHEN price BETWEEN ? AND ? THEN 15 ELSE 0 END)")
+                params.extend([min_price, max_price])
+                
+                # C. NLP Keyword Extraction Score
+                if top_keywords:
+                    for idx, kw in enumerate(top_keywords):
+                        weight = 40 - (idx * 5)
+                        score_parts.append(f"(CASE WHEN LOWER(name) LIKE ? THEN {weight} ELSE 0 END)")
+                        params.append(f"%{kw}%")
+
+                score_calc = " + ".join(score_parts)
+                
                 query = f"""
-                    SELECT *, 
-                    (
-                        (CASE WHEN category = ? THEN 100 ELSE 0 END) +  /* Massive boost to their #1 category */
-                        (CASE WHEN category IN ({cat_placeholders}) THEN 30 ELSE 0 END) + /* Moderate boost to secondary categories */
-                        (CASE WHEN brand = ? THEN 80 ELSE 0 END) +      /* Brand Loyalty boost */
-                        (CASE WHEN price BETWEEN ? AND ? THEN 40 ELSE 0 END) + /* Price Bracket match */
-                        (avg_rating * 5)                                /* Quality assurance */
-                    ) as match_score
+                    SELECT *, ({score_calc}) as match_score 
                     FROM products
-                    WHERE category IN ({cat_placeholders})
-                    ORDER BY match_score DESC, popularity_score DESC
+                    WHERE match_score > 20 
+                    ORDER BY match_score DESC, popularity_score DESC 
                     LIMIT ?
                 """
-                
-                # Bind parameters safely
-                params = [primary_category] + top_categories + [primary_brand, min_price, max_price] + top_categories + [limit]
+                params.append(limit)
                 
                 cursor.execute(query, params)
                 products = cursor.fetchall()
@@ -286,14 +306,13 @@ async def cold_start_recommendations(session_id: str, limit: int = 400):
                     conn.close()
                     return [dict(p) for p in products]
                 
-        # Fallback if no valid clicks
         cursor.execute('SELECT * FROM products ORDER BY (popularity_score * RANDOM()) DESC LIMIT ?', (limit,))
         products = cursor.fetchall()
         conn.close()
         return [dict(p) for p in products]
         
     except Exception as e:
-        logger.error(f"Persona AI failed: {e}")
+        logger.error(f"Cold start logic failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/recommend/ncf/{user_id}")

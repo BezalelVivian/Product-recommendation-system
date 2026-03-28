@@ -278,7 +278,6 @@
                 let res = await fetch(`${API}/categories`);
                 let categories = await res.json();
                 
-                // BACK TO THE FLAT LIST! Your exact requested sequence.
                 const priorityOrder = [
                     "Clothing, Shoes & Jewelry",
                     "Electronics",
@@ -381,7 +380,8 @@
             
             if (currentCategory === "For You") {
                 let activeId = currentUserId ? currentUserId : (localStorage.getItem('session_id') || 'none');
-                url = `${API}/recommend/cold-start/${activeId}?limit=400`;
+                // 🚀 UPGRADED: Capped at 40 items for FAANG-level UX!
+                url = `${API}/recommend/cold-start/${activeId}?limit=40`;
                 document.getElementById('secTitle').textContent = "✨ Personalized Top Picks for You";
             } else {
                 if (currentSearchQuery) url += `&search=${encodeURIComponent(currentSearchQuery)}`;
