@@ -6,6 +6,7 @@ import sqlite3
 import hashlib
 import uuid
 import json
+import random
 from datetime import datetime
 import logging
 import sys
@@ -213,8 +214,9 @@ async def search_products(q: str, limit: int = 60):
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
 # 🚀 UPGRADED: The Industry-Standard Hybrid Recommendation AI
+# 🚀 UPGRADED: The Industry-Standard Hybrid Recommendation AI with MMR
 @app.get("/recommend/cold-start/{session_id}")
-async def cold_start_recommendations(session_id: str, limit: int = 40):
+async def cold_start_recommendations(session_id: str, limit: int = 60):
     try:
         conn = get_db()
         conn.row_factory = sqlite3.Row
@@ -290,6 +292,7 @@ async def cold_start_recommendations(session_id: str, limit: int = 40):
 
                 score_calc = " + ".join(score_parts)
                 
+                # Notice we fetch a bit more than the limit so the AI has room to pick and choose
                 query = f"""
                     SELECT *, ({score_calc}) as match_score 
                     FROM products
@@ -297,19 +300,45 @@ async def cold_start_recommendations(session_id: str, limit: int = 40):
                     ORDER BY match_score DESC, popularity_score DESC 
                     LIMIT ?
                 """
-                params.append(limit)
+                params.append(limit * 2) 
                 
                 cursor.execute(query, params)
                 products = cursor.fetchall()
                 
                 if len(products) > 0:
                     conn.close()
-                    return [dict(p) for p in products]
+                    product_list = [dict(p) for p in products]
+                    
+                    # 🚀 FAANG TECHNIQUE: Maximal Marginal Relevance (Dynamic Diversity Tax)
+                    final_feed = []
+                    category_penalties = {}
+                    
+                    while len(final_feed) < limit and product_list:
+                        # Sort remaining products by their score MINUS a 15% penalty per previous pick in that category
+                        product_list.sort(
+                            key=lambda x: x['match_score'] * (0.85 ** category_penalties.get(x['category'], 0)), 
+                            reverse=True
+                        )
+                        
+                        # Pick the winner
+                        winner = product_list.pop(0)
+                        final_feed.append(winner)
+                        
+                        # Apply the 15% tax to the winner's category for the next round
+                        cat = winner['category']
+                        category_penalties[cat] = category_penalties.get(cat, 0) + 1
+                        
+                    return final_feed
                 
+        # Cleaned up Fallback if no valid clicks
         cursor.execute('SELECT * FROM products ORDER BY (popularity_score * RANDOM()) DESC LIMIT ?', (limit,))
         products = cursor.fetchall()
         conn.close()
-        return [dict(p) for p in products]
+        
+        fallback_list = [dict(p) for p in products]
+        import random
+        random.shuffle(fallback_list)
+        return fallback_list
         
     except Exception as e:
         logger.error(f"Cold start logic failed: {e}")
